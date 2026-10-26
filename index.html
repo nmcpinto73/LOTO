@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LoTo — Gestão de Cadeados</title>
+<meta name="description" content="Gestão de cadeados e bloqueios LOTO — consignação e desconsignação partilhada entre técnicos.">
+<meta name="theme-color" content="#0e1726">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#0b1220; --bg2:#111c2e; --card:#16223a; --card2:#1c2b45;
+    --line:#27395c; --txt:#eef4ff; --muted:#8fa3c4;
+    --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --blue:#3b82f6;
+    --r:16px; --sh:0 6px 22px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:
+      radial-gradient(1100px 500px at 80% -10%, rgba(59,130,246,.16), transparent 60%),
+      radial-gradient(800px 400px at -10% 10%, rgba(34,197,94,.10), transparent 60%),
+      var(--bg);
+    color:var(--txt); min-height:100vh; overscroll-behavior-y:none;
+    padding-bottom:calc(84px + env(safe-area-inset-bottom));
+    font-size:16px; line-height:1.45;
+  }
+  body.semnav{padding-bottom:24px}
+  header{
+    position:sticky; top:0; z-index:30;
+    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background:rgba(11,18,32,.86); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; min-width:0}
+  .logo{
+    width:38px;height:38px;border-radius:11px;flex:0 0 auto;
+    background:linear-gradient(140deg,#3b82f6,#0ea5e9 55%,#22c55e);
+    display:grid;place-items:center;font-size:19px;
+    box-shadow:0 4px 14px rgba(59,130,246,.35);
+  }
+  .brand h1{font-size:15px;margin:0;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand span{display:block;font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.4px;text-transform:uppercase}
+  .hdr-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .icon-btn{
+    width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+    background:var(--card); color:var(--txt); font-size:16px; display:grid;place-items:center;
+  }
+  .icon-btn:active{transform:scale(.95)}
+  .sinc{
+    display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+    padding:6px 10px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--muted);
+  }
+  .sinc i{width:7px;height:7px;border-radius:50%;background:var(--green);display:block}
+  .sinc.off i{background:var(--amber)}
+  .sinc.err i{background:var(--red)}
+  main{padding:16px 14px 8px; max-width:640px; margin:0 auto}
+  .screen{display:none; animation:fade .22s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .sec-title{font-size:12px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);margin:22px 4px 10px;font-weight:700}
+  .sec-title:first-child{margin-top:0}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{
+    background:linear-gradient(160deg,var(--card2),var(--card));
+    border:1px solid var(--line); border-radius:var(--r); padding:14px;
+    position:relative; overflow:hidden;
+  }
+  .kpi:after{content:"";position:absolute;inset:0 0 auto auto;width:64px;height:64px;border-radius:50%;filter:blur(26px);opacity:.5}
+  .kpi .lbl{font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .kpi .val{font-size:32px;font-weight:800;letter-spacing:-1px;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .kpi.tot:after{background:#3b82f6}
+  .kpi.free:after{background:#22c55e}
+  .kpi.free .val{color:#4ade80}
+  .kpi.use:after{background:#f59e0b}
+  .kpi.use .val{color:#fbbf24}
+  .kpi.rate:after{background:#a855f7}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .dot.g{background:var(--green);box-shadow:0 0 0 4px rgba(34,197,94,.15)}
+  .dot.a{background:var(--amber);box-shadow:0 0 0 4px rgba(245,158,11,.15)}
+  .row .nm{font-weight:700;font-size:15px}
+  .row .ds{font-size:12px;color:var(--muted)}
+  .row .rt{margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+  .row .rt b{font-size:18px;display:block;line-height:1.1}
+  .row .rt small{font-size:11px;color:var(--muted)}
+  .bar{height:10px;border-radius:99px;background:#0d1729;overflow:hidden;display:flex;margin:0 14px 14px;border:1px solid var(--line)}
+  .bar i{display:block;height:100%;transition:width .4s ease}
+  .bar i.g{background:linear-gradient(90deg,#16a34a,#4ade80)}
+  .bar i.a{background:linear-gradient(90deg,#d97706,#fbbf24)}
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:15px 16px;border-radius:14px;border:none;
+    font-size:15px;font-weight:700;color:#04120a;
+    background:linear-gradient(135deg,#34d399,#22c55e);
+    box-shadow:0 8px 20px rgba(34,197,94,.28);
+    cursor:pointer;font-family:inherit;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn.warn{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2a1a00;box-shadow:0 8px 20px rgba(245,158,11,.28)}
+  .btn.blue{background:linear-gradient(135deg,#60a5fa,#3b82f6);color:#031024;box-shadow:0 8px 20px rgba(59,130,246,.28)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);box-shadow:none;font-weight:600}
+  .btn.danger{background:linear-gradient(135deg,#f87171,#ef4444);color:#2a0505;box-shadow:none}
+  .btn[disabled]{opacity:.5;box-shadow:none}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin:0 0 7px 3px}
+  .field .req{color:var(--amber)}
+  input,select,textarea{
+    width:100%;padding:14px;border-radius:13px;border:1px solid var(--line);
+    background:#0d1729;color:var(--txt);font-size:16px;font-family:inherit;
+    appearance:none;-webkit-appearance:none;
+  }
+  select{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238fa3c4' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 14px center;padding-right:40px;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+  input::placeholder{color:#5b7091}
+  .hint{font-size:12px;color:var(--muted);margin:6px 3px 0}
+  .check{
+    display:flex;gap:11px;align-items:flex-start;padding:13px;border-radius:13px;
+    background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.4);
+  }
+  .check input{width:22px;height:22px;flex:0 0 auto;margin:0;accent-color:#f59e0b}
+  .check span{font-size:13px;line-height:1.4}
+  .alert{
+    padding:12px 13px;border-radius:12px;font-size:13.5px;margin-bottom:14px;
+    background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.45);color:#fecaca;
+  }
+  .alert.ok{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.45);color:#bbf7d0}
+  .alert.info{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.45);color:#bfdbfe}
+  .alert.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.45);color:#fde68a}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;padding:9px 15px;border-radius:99px;border:1px solid var(--line);
+    background:var(--card);color:var(--muted);font-size:13px;font-weight:700;white-space:nowrap;
+    font-family:inherit;
+  }
+  .chip.on{background:#3b82f6;border-color:#3b82f6;color:#fff}
+  .hitem{
+    background:var(--card);border:1px solid var(--line);border-left:4px solid var(--green);
+    border-radius:12px;padding:12px 13px;margin-bottom:9px;
+  }
+  .hitem.des{border-left-color:var(--amber)}
+  .hitem .top{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .tag{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,.16);color:#86efac}
+  .hitem.des .tag{background:rgba(245,158,11,.16);color:#fcd34d}
+  .hitem .when{margin-left:auto;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .hitem .lid{font-weight:800;font-size:15px}
+  .hitem .meta{font-size:13px;color:#b9c9e2;margin-top:3px}
+  .hitem .meta b{color:#e8f0ff;font-weight:600}
+  .pend{font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:6px;background:rgba(59,130,246,.18);color:#93c5fd}
+  .empty{text-align:center;padding:44px 20px;color:var(--muted)}
+  .empty .big{font-size:40px;opacity:.5;margin-bottom:10px}
+  .lgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+  .lcell{
+    background:var(--card);border:1px solid var(--line);border-radius:11px;
+    padding:10px 8px;text-align:center;font-size:12.5px;font-weight:700;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;
+  }
+  .lcell small{display:block;font-size:9.5px;font-weight:800;letter-spacing:.6px;margin-top:3px;color:#4ade80}
+  .lcell.uso{border-color:rgba(245,158,11,.55);background:rgba(245,158,11,.08)}
+  .lcell.uso small{color:#fbbf24}
+  nav{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    display:grid;grid-template-columns:repeat(5,1fr);
+    background:rgba(17,28,46,.94);backdrop-filter:blur(16px);
+    border-top:1px solid var(--line);
+    padding:7px 4px calc(7px + env(safe-area-inset-bottom));
+  }
+  nav button{
+    background:none;border:none;color:var(--muted);font-size:10px;font-weight:700;
+    display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 2px;
+    font-family:inherit;letter-spacing:.2px;border-radius:10px;
+  }
+  nav button .ic{font-size:19px;line-height:1}
+  nav button.on{color:#fff}
+  nav button.on .ic{filter:drop-shadow(0 0 10px rgba(59,130,246,.8))}
+  #toast{
+    position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translate(-50%,20px);
+    background:#0f2b1c;border:1px solid rgba(34,197,94,.6);color:#d1fae5;
+    padding:12px 18px;border-radius:12px;font-size:13.5px;font-weight:600;max-width:90vw;
+    opacity:0;pointer-events:none;transition:.25s;z-index:60;box-shadow:var(--sh);text-align:center;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.err{background:#2b0f14;border-color:rgba(239,68,68,.6);color:#fecaca}
+  #toast.info{background:#0d1b30;border-color:rgba(59,130,246,.6);color:#bfdbfe}
+  .modal{position:fixed;inset:0;z-index:70;display:none;align-items:flex-end;justify-content:center;background:rgba(3,7,15,.7);backdrop-filter:blur(3px)}
+  .modal.show{display:flex}
+  .sheet{
+    background:var(--bg2);border:1px solid var(--line);border-radius:20px 20px 0 0;
+    width:100%;max-width:640px;padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    animation:up .25s ease;max-height:92vh;overflow:auto;
+  }
+  @keyframes up{from{transform:translateY(20px);opacity:.6}to{transform:none;opacity:1}}
+  .sheet h3{margin:0 0 4px;font-size:18px}
+  .sheet .big-ic{font-size:38px;text-align:center;margin:4px 0 8px}
+  .recap{background:#0d1729;border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0}
+  .recap div{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px dashed rgba(39,57,92,.7)}
+  .recap div:last-child{border-bottom:none}
+  .recap span:first-child{color:var(--muted)}
+  .recap span:last-child{font-weight:700;text-align:right}
+  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#0d1729;border:1px solid var(--line);border-radius:12px;padding:5px;margin-bottom:18px}
+  .tabs button{background:none;border:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:11px;border-radius:9px;font-family:inherit}
+  .tabs button.on{background:var(--card2);color:#fff}
+  details.help{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:0}
+  details.help summary{padding:14px;font-weight:700;font-size:14px;cursor:pointer;list-style:none}
+  details.help summary::-webkit-details-marker{display:none}
+  details.help ol{margin:0;padding:0 16px 16px 34px;font-size:13px;color:#b9c9e2;line-height:1.6}
+  details.help li{margin-bottom:8px}
+  .foot{text-align:center;font-size:11px;color:#5b7091;padding:22px 0 6px;line-height:1.7}
+  .authwrap{max-width:420px;margin:0 auto;padding:8px 4px}
+  .authwrap h2{font-size:22px;margin:6px 0 4px;letter-spacing:-.4px}
+  .authwrap p.lead{color:var(--muted);font-size:13.5px;margin:0 0 20px}
+  .code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:3px;
+    font-size:19px;text-align:center;font-weight:800;text-transform:uppercase;
+  }
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:8px 0;border-bottom:1px dashed rgba(39,57,92,.7)}
+  .kv:last-child{border-bottom:none}
+  .kv span:first-child{color:var(--muted)}
+  .kv span:last-child{font-weight:700;text-align:right;word-break:break-all}
+</style>
+</head>
+<body class="semnav">
+
+<header>
+  <div class="brand">
+    <div class="logo">🔒</div>
+    <div>
+      <h1>Gestão de Cadeados LOTO</h1>
+      <span id="hdrSub">EuroResinas</span>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <div class="sinc" id="sincBadge" style="display:none"><i></i><em id="sincTxt" style="font-style:normal">Sincronizado</em></div>
+    <button class="icon-btn" id="btnMenu" style="display:none">⋯</button>
+  </div>
+</header>
+
+<main>
+  <!-- ================= LOGIN ================= -->
+  <section class="screen active" id="s-login">
+    <div class="authwrap">
+      <h2>Entrar</h2>
+      <p class="lead">O histórico é partilhado por toda a equipa. Precisa de conta para aceder.</p>
+      <div id="loginAlert"></div>
+      <div class="field">
+        <label>Email</label>
+        <input id="aEmail" type="email" inputmode="email" autocomplete="username" placeholder="nome@euroresinas.pt">
+      </div>
+      <div class="field">
+        <label>Palavra-passe</label>
+        <input id="aPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn blue" id="btnEntrar">Entrar</button>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost" id="btnRegistar">Criar conta</button>
+        <button class="btn ghost" id="btnLocal">Usar sem conta</button>
+      </div>
+      <p class="hint" style="text-align:center;margin-top:16px">
+        “Usar sem conta” guarda apenas neste telemóvel — os colegas não veem.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= ONBOARDING ================= -->
+  <section class="screen" id="s-equipa">
+    <div class="authwrap">
+      <h2>A sua equipa</h2>
+      <p class="lead">Uma equipa = um quadro de cadeados partilhado. Crie a primeira vez e dê o código aos colegas.</p>
+      <div class="tabs">
+        <button class="on" data-aba="criar">Criar equipa</button>
+        <button data-aba="entrar">Entrar com código</button>
+      </div>
+      <div id="equipaAlert"></div>
+
+      <div id="abaCriar">
+        <div class="field">
+          <label>Nome da equipa</label>
+          <input id="eqNome" type="text" placeholder="Ex.: Produção — Linha 2">
+        </div>
+        <div class="field">
+          <label>Código de acesso <span class="req">*</span></label>
+          <input id="eqCodigo" type="text" class="code" maxlength="16" placeholder="LOTO25" autocapitalize="characters">
+          <p class="hint">Mínimo 4 caracteres. É o que os colegas escrevem para aderir.</p>
+        </div>
+        <div class="field">
+          <label>O seu nome</label>
+          <input id="eqMembro" type="text" placeholder="Ex.: Nuno Pinto">
+        </div>
+        <button class="btn" id="btnCriarEquipa">Criar equipa</button>
+        <p class="hint" style="text-align:center">São importados os 58 cadeados do ficheiro Excel.</p>
+      </div>
+
+      <div id="abaEntrar" style="display:none">
+        <div class="field">
+          <label>Código da equipa <span class="req">*</span></label>
+          <input id="eqCodigo2" type="text" class="code" maxlength="16" placeholder="LOTO25" autocapitalize="characters">
+        </div>
+        <div class="field">
+          <label>O seu nome</label>
+          <input id="eqMembro2" type="text" placeholder="Ex.: Paulo Oliveira">
+        </div>
+        <button class="btn blue" id="btnEntrarEquipa">Aderir à equipa</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= INÍCIO ================= -->
+  <section class="screen" id="s-inicio">
+    <div class="kpis">
+      <div class="kpi tot">
+        <div class="lbl">Total de cadeados</div>
+        <div class="val" id="kTotal">0</div>
+        <div class="sub">no quadro de produção</div>
+      </div>
+      <div class="kpi free">
+        <div class="lbl">Cadeados livres</div>
+        <div class="val" id="kLivres">0</div>
+        <div class="sub">prontos a usar</div>
+      </div>
+      <div class="kpi use">
+        <div class="lbl">Cadeados em uso</div>
+        <div class="val" id="kUso">0</div>
+        <div class="sub">bloqueio ativo</div>
+      </div>
+      <div class="kpi rate">
+        <div class="lbl">Taxa de ocupação</div>
+        <div class="val" id="kTaxa">0%</div>
+        <div class="sub" id="kTaxaSub">0 de 0 em uso</div>
+      </div>
+    </div>
+
+    <div id="pendBox"></div>
+
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn" data-go="consignar">🔒 Consignar</button>
+      <button class="btn warn" data-go="desconsignar">🔓 Desconsignar</button>
+    </div>
+
+    <div class="sec-title">Resumo de ocupação do quadro</div>
+    <div class="card">
+      <div class="bar" id="barOcup" style="margin:13px 14px 10px"></div>
+      <div class="row">
+        <i class="dot g"></i>
+        <div><div class="nm">Livre</div><div class="ds">Disponíveis para novas consignações</div></div>
+        <div class="rt"><b id="rLivres">0</b><small id="pLivres">0%</small></div>
+      </div>
+      <div class="row">
+        <i class="dot a"></i>
+        <div><div class="nm">Em Uso</div><div class="ds">Bloqueio LOTO ativo em equipamento</div></div>
+        <div class="rt"><b id="rUso">0</b><small id="pUso">0%</small></div>
+      </div>
+    </div>
+
+    <div class="sec-title">Bloqueios ativos</div>
+    <div class="card" id="ativosBox"></div>
+
+    <div class="sec-title">Como funciona</div>
+    <details class="help">
+      <summary>Ver as 5 regras de utilização</summary>
+      <ol>
+        <li>A página <b>Início</b> mostra os cadeados usados em consignação e os cadeados livres, e permite iniciar uma consignação ou desconsignação.</li>
+        <li>A página <b>Consignação</b> permite bloquear um equipamento: identifica-se o cadeado, o responsável e a AT associada.</li>
+        <li>A página <b>Desconsignação</b> permite desbloquear um equipamento bloqueado: identifica-se o cadeado em uso e o responsável.</li>
+        <li>A página <b>Histórico</b> mostra o registo de todas as operações, com autor e data, e permite exportar para CSV.</li>
+        <li>A página <b>Cadeados</b> identifica todos os cadeados existentes na produção (a folha oculta do Excel).</li>
+      </ol>
+    </details>
+
+    <div class="foot">
+      Portado de “Gestão LoTo.xlsm” — Nuno Pinto © 2026<br>
+      <span id="footModo"></span>
+    </div>
+  </section>
+
+  <!-- ================= CONSIGNAÇÃO ================= -->
+  <section class="screen" id="s-consignar">
+    <div class="alert info" style="margin-top:0">
+      <b>1.</b> Escolha um cadeado livre &nbsp;·&nbsp; <b>2.</b> Preencha equipamento, responsável e AT &nbsp;·&nbsp; <b>3.</b> Valide
+    </div>
+    <div id="alertConsig"></div>
+    <form id="formConsig" autocomplete="off">
+      <div class="field">
+        <label>ID do Cadeado <span class="req">*</span></label>
+        <select id="cCadeado" required></select>
+        <p class="hint" id="cCadeadoHint"></p>
+      </div>
+      <div class="field">
+        <label>Equipamento a bloquear <span class="req">*</span></label>
+        <input id="cEquip" type="text" placeholder="Ex.: Reator R-201" required>
+      </div>
+      <div class="field">
+        <label>Responsável pela consignação <span class="req">*</span></label>
+        <input id="cResp" type="text" list="dlMembros" placeholder="Nome do responsável" required>
+        <datalist id="dlMembros"></datalist>
+      </div>
+      <div class="field">
+        <label>Autorização de trabalho (AT) <span class="req">*</span></label>
+        <input id="cAT" type="text" placeholder="Ex.: AT-2026/045" required>
+      </div>
+      <div class="field">
+        <label>Data / hora do bloqueio</label>
+        <input id="cData" type="text" readonly>
+      </div>
+      <button class="btn" type="submit" id="btnConsignar">🔒 Validar consignação</button>
+    </form>
+  </section>
+
+  <!-- ================= DESCONSIGNAÇÃO ================= -->
+  <section class="screen" id="s-desconsignar">
+    <div class="alert info" style="margin-top:0">
+      <b>1.</b> Escolha um cadeado em uso &nbsp;·&nbsp; <b>2.</b> Indique o responsável &nbsp;·&nbsp; <b>3.</b> Confirme o desbloqueio
+    </div>
+    <div id="alertDesconsig"></div>
+    <form id="formDesconsig" autocomplete="off">
+      <div class="field">
+        <label>ID e equipamento <span class="req">*</span></label>
+        <select id="dCadeado" required></select>
+        <p class="hint" id="dCadeadoHint"></p>
+      </div>
+      <div class="field">
+        <label>Responsável pela desconsignação <span class="req">*</span></label>
+        <input id="dResp" type="text" list="dlMembros2" placeholder="Nome do responsável" required>
+        <datalist id="dlMembros2"></datalist>
+      </div>
+      <div class="field">
+        <label>Data / hora do desbloqueio</label>
+        <input id="dData" type="text" readonly>
+      </div>
+      <div class="field">
+        <div class="check">
+          <input type="checkbox" id="dSeg">
+          <span>Confirmo que <b>todas as condições de segurança estão repostas</b> e que o equipamento pode ser desbloqueado.</span>
+        </div>
+      </div>
+      <button class="btn warn" type="submit" id="btnDesconsignar">🔓 Confirmar desbloqueio</button>
+    </form>
+  </section>
+
+  <!-- ================= HISTÓRICO ================= -->
+  <section class="screen" id="s-historico">
+    <div class="chips" id="hChips">
+      <button class="chip on" data-tipo="Todos">Todos</button>
+      <button class="chip" data-tipo="Consignação">Consignações</button>
+      <button class="chip" data-tipo="Desconsignação">Desconsignações</button>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <input id="hSearch" type="search" placeholder="🔎 Procurar cadeado, equipamento, responsável, AT…">
+    </div>
+    <div id="hList"></div>
+    <button class="btn ghost" id="btnCSV" style="margin-top:12px">⬇ Exportar histórico (CSV)</button>
+    <p class="hint" style="text-align:center" id="hInfo">Colunas iguais à folha “Historico” do Excel</p>
+  </section>
+
+  <!-- ================= CADEADOS ================= -->
+  <section class="screen" id="s-cadeados">
+    <div class="field" style="margin-bottom:12px">
+      <input id="gSearch" type="search" placeholder="🔎 Procurar cadeado…">
+    </div>
+    <div class="chips" id="gChips">
+      <button class="chip on" data-est="Todos">Todos</button>
+      <button class="chip" data-est="Livre">Livres</button>
+      <button class="chip" data-est="Em Uso">Em uso</button>
+    </div>
+    <div class="lgrid" id="gGrid"></div>
+    <div class="sec-title">Gestão do quadro</div>
+    <div class="card" style="padding:14px">
+      <div class="field" style="margin-bottom:10px">
+        <label>Adicionar cadeado</label>
+        <input id="novoId" type="text" placeholder="Novo ID (ex.: 1231 ou HX 04100)">
+      </div>
+      <button class="btn ghost" id="btnAdd">+ Adicionar ao quadro</button>
+    </div>
+    <p class="hint" style="text-align:center;margin-top:14px">Toca num cadeado para remover (só se estiver livre)</p>
+  </section>
+</main>
+
+<nav style="display:none" id="nav">
+  <button class="on" data-go="inicio"><span class="ic">🏠</span>Início</button>
+  <button data-go="consignar"><span class="ic">🔒</span>Consignar</button>
+  <button data-go="desconsignar"><span class="ic">🔓</span>Desconsignar</button>
+  <button data-go="historico"><span class="ic">📋</span>Histórico</button>
+  <button data-go="cadeados"><span class="ic">🗝️</span>Cadeados</button>
+</nav>
+
+<div id="toast"></div>
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+
+<script src="config.js"></script>
+<script src="logic.js"></script>
+<script src="store.js"></script>
+<script>
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var K_LOCAL = 'loto.state.v1';
+  var S = { locks: [], history: [], users: [] };   // estado visível
+  var modo = 'nuvem';        // 'nuvem' | 'local'
+  var ecra = 'inicio', hTipo = 'Todos', gEst = 'Todos';
+  var timerSinc = null;
+
+  /* ---------- helpers ---------- */
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+  var toastT;
+  function toast(msg, tipo){
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'show' + (tipo ? ' ' + tipo : '');
+    clearTimeout(toastT);
+    toastT = setTimeout(function(){ t.className = tipo || ''; }, 3600);
+  }
+  function openSheet(html){ $('sheet').innerHTML = html; $('modal').classList.add('show'); }
+  function closeSheet(){ $('modal').classList.remove('show'); }
+  $('modal').addEventListener('click', function(e){ if(e.target === this) closeSheet(); });
+
+  function ecraMostrar(nome){
+    ecra = nome;
+    ['login','equipa','inicio','consignar','desconsignar','historico','cadeados'].forEach(function(n){
+      var el = $('s-' + n); if(el) el.classList.toggle('active', n === nome);
+    });
+    var comNav = ['inicio','consignar','desconsignar','historico','cadeados'].indexOf(nome) >= 0;
+    $('nav').style.display = comNav ? 'grid' : 'none';
+    document.body.classList.toggle('semnav', !comNav);
+    document.querySelectorAll('#nav button').forEach(function(b){
+      b.classList.toggle('on', b.dataset.go === nome);
+    });
+    $('btnMenu').style.display = comNav ? 'grid' : 'none';
+    $('sincBadge').style.display = comNav && modo === 'nuvem' ? 'flex' : 'none';
+    window.scrollTo(0, 0);
+    if(nome === 'inicio') renderInicio();
+    if(nome === 'consignar') renderConsignar();
+    if(nome === 'desconsignar') renderDesconsignar();
+    if(nome === 'historico') renderHistorico();
+    if(nome === 'cadeados') renderCadeados();
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-go]');
+    if(b) ecraMostrar(b.dataset.go);
+  });
+
+  /* ================= MODO LOCAL (legado) ================= */
+  function localLer(){
+    try{
+      var raw = localStorage.getItem(K_LOCAL);
+      if(raw){
+        var s = JSON.parse(raw);
+        if(s && s.locks && s.locks.length){
+          return { locks: s.locks, history: s.history || [], users: s.users || [] };
+        }
+      }
+    }catch(e){}
+    var seed = LoTo.seedState(new Date().toISOString());
+    return { locks: seed.locks, history: [], users: seed.users };
+  }
+  function localGravar(){
+    try{ localStorage.setItem(K_LOCAL, JSON.stringify({ version:1, locks:S.locks, history:S.history, users:S.users })); }catch(e){}
+  }
+  function modoLocal(){
+    modo = 'local';
+    S = localLer();
+    $('hdrSub').textContent = 'Modo local (só este telemóvel)';
+    $('footModo').textContent = 'Modo local — os dados não saem deste dispositivo.';
+    $('sincBadge').style.display = 'none';
+    $('btnMenu').style.display = 'grid';
+    ecraMostrar('inicio');
+  }
+
+  /* ================= MODO NUVEM ================= */
+  function atualizarBadge(){
+    if(modo !== 'nuvem') return;
+    var b = $('sincBadge'), t = $('sincTxt');
+    var n = Store.fila().length;
+    b.className = 'sinc' + (!Store.online() ? ' off' : '');
+    if(!Store.online()){ t.textContent = n ? 'Offline · ' + n + ' por enviar' : 'Offline'; }
+    else if(n){ t.textContent = n + ' por enviar'; b.className = 'sinc off'; }
+    else { t.textContent = 'Sincronizado'; }
+  }
+
+  function nuvemCarregar(mostrarCarregando){
+    if(mostrarCarregando) toast('A carregar…', 'info');
+    return Store.carregar().then(function(snap){
+      S = { locks: snap.locks || [], history: snap.history || [], users: snap.users || [] };
+      $('hdrSub').textContent = (snap.equipa && snap.equipa.nome) ? snap.equipa.nome : 'LoTo';
+      $('footModo').textContent = 'Dados partilhados na nuvem — equipa ' + ((snap.equipa && snap.equipa.codigo) || '');
+      atualizarBadge();
+      if(ecra === 'inicio') renderInicio();
+      if(ecra === 'consignar') renderConsignar();
+      if(ecra === 'desconsignar') renderDesconsignar();
+      if(ecra === 'historico') renderHistorico();
+      if(ecra === 'cadeados') renderCadeados();
+    });
+  }
+
+  function entrarNaApp(){
+    modo = 'nuvem';
+    if(!Store.equipa()){ ecraMostrar('equipa'); return; }
+    ecraMostrar('inicio');
+    nuvemCarregar().catch(function(err){
+      toast(err.message || 'Sem ligação. A mostrar dados guardados.', 'err');
+      var c = Store.cache();
+      if(c){ S = { locks: c.locks || [], history: c.history || [], users: c.users || [] }; renderInicio(); }
+    });
+  }
+
+  /* ---------- login ---------- */
+  function loginErro(msg){ $('loginAlert').innerHTML = msg ? '<div class="alert">' + esc(msg) + '</div>' : ''; }
+  $('btnEntrar').addEventListener('click', function(){
+    var email = $('aEmail').value.trim(), pass = $('aPass').value;
+    if(!email || !pass){ loginErro('Preencha o email e a palavra-passe.'); return; }
+    if(!Store.nuvem){
+      loginErro('A app ainda não está ligada a um servidor. Veja o guia de configuração (config.js).');
+      return;
+    }
+    loginErro('');
+    this.disabled = true; this.textContent = 'A entrar…';
+    var self = this;
+    Store.entrar(email, pass).then(function(){
+      var u = Store.user();
+      var ultimo = localStorage.getItem('loto.ultimoNome');
+      if(!ultimo && u && u.email) localStorage.setItem('loto.ultimoNome', u.email.split('@')[0]);
+      entrarNaApp();
+    }).catch(function(err){ loginErro(err.message); })
+      .then(function(){ self.disabled = false; self.textContent = 'Entrar'; });
+  });
+
+  $('aPass').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('btnEntrar').click(); });
+
+  $('btnRegistar').addEventListener('click', function(){
+    var email = $('aEmail').value.trim(), pass = $('aPass').value;
+    if(!email || !pass){ loginErro('Indique email e palavra-passe (mínimo 6 caracteres).'); return; }
+    if(!Store.nuvem){ loginErro('A app ainda não está ligada a um servidor.'); return; }
+    loginErro('');
+    this.disabled = true;
+    var self = this;
+    Store.registar(email, pass).then(function(r){
+      if(r.confirmado){
+        toast('Conta criada.');
+        ecraMostrar('equipa');
+      }else{
+        loginErro('');
+        $('loginAlert').innerHTML = '<div class="alert ok">Conta criada. Abra o email de confirmação e depois volte aqui para entrar.</div>';
+      }
+    }).catch(function(err){ loginErro(err.message); })
+      .then(function(){ self.disabled = false; });
+  });
+
+  $('btnLocal').addEventListener('click', modoLocal);
+
+  /* ---------- equipa ---------- */
+  function eqErro(msg){ $('equipaAlert').innerHTML = msg ? '<div class="alert">' + esc(msg) + '</div>' : ''; }
+  document.querySelectorAll('.tabs button').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.tabs button').forEach(function(x){ x.classList.toggle('on', x === b); });
+      var criar = b.dataset.aba === 'criar';
+      $('abaCriar').style.display = criar ? 'block' : 'none';
+      $('abaEntrar').style.display = criar ? 'none' : 'block';
+    });
+  });
+
+  $('btnCriarEquipa').addEventListener('click', function(){
+    var nome = $('eqNome').value.trim();
+    var codigo = $('eqCodigo').value.trim().toUpperCase();
+    var membro = $('eqMembro').value.trim() || (Store.user() && Store.user().email.split('@')[0]);
+    if(!codigo || codigo.length < 4){ eqErro('O código deve ter pelo menos 4 caracteres.'); return; }
+    eqErro('');
+    this.disabled = true; this.textContent = 'A criar…';
+    var self = this;
+    Store.criarEquipa(nome || 'Equipa', codigo, membro, LoTo.SEED_IDS.map(String))
+      .then(function(){
+        localStorage.setItem('loto.ultimoNome', membro);
+        toast('Equipa criada. Código: ' + codigo);
+        entrarNaApp();
+      })
+      .catch(function(err){ eqErro(err.message); })
+      .then(function(){ self.disabled = false; self.textContent = 'Criar equipa'; });
+  });
+
+  $('btnEntrarEquipa').addEventListener('click', function(){
+    var codigo = $('eqCodigo2').value.trim();
+    var membro = $('eqMembro2').value.trim() || (Store.user() && Store.user().email.split('@')[0]);
+    if(!codigo){ eqErro('Escreva o código da equipa.'); return; }
+    eqErro('');
+    this.disabled = true; this.textContent = 'A aderir…';
+    var self = this;
+    Store.entrarEquipa(codigo, membro)
+      .then(function(){
+        localStorage.setItem('loto.ultimoNome', membro);
+        toast('Aderiu à equipa.');
+        entrarNaApp();
+      })
+      .catch(function(err){ eqErro(err.message); })
+      .then(function(){ self.disabled = false; self.textContent = 'Aderir à equipa'; });
+  });
+
+  /* ---------- menu ---------- */
+  $('btnMenu').addEventListener('click', function(){
+    var eq = (modo === 'nuvem' && Store.equipa()) ? Store.equipa() : null;
+    var u = modo === 'nuvem' ? (Store.user() || {}) : null;
+    var pend = modo === 'nuvem' ? Store.fila().length : 0;
+    var html = '<h3>Conta e equipa</h3>';
+    if(eq){
+      html += '<div class="recap">' +
+        '<div><span>Equipa</span><span>' + esc(eq.nome) + '</span></div>' +
+        '<div><span>Código</span><span style="letter-spacing:2px">' + esc(eq.codigo) + '</span></div>' +
+        '<div><span>Utilizador</span><span>' + esc((u && u.email) || '') + '</span></div>' +
+        '<div><span>Por enviar</span><span>' + pend + '</span></div>' +
+      '</div>';
+    } else {
+      html += '<div class="alert info">Modo local: os dados ficam só neste telemóvel.</div>';
+    }
+    html += '<button class="btn ghost" id="mSinc" style="margin-bottom:9px">⟳ Sincronizar agora</button>';
+    if(eq && modo === 'nuvem'){
+      html += '<button class="btn ghost" id="mMigrar" style="margin-bottom:9px">⬆ Enviar dados locais para a nuvem</button>';
+      html += '<button class="btn danger" id="mSair" style="margin-bottom:9px">Terminar sessão</button>';
+    } else {
+      html += '<button class="btn blue" id="mAtivar" style="margin-bottom:9px">Ligar à nuvem</button>';
+    }
+    html += '<button class="btn ghost" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">Fechar</button>';
+    openSheet(html);
+
+    if($('mSinc')) $('mSinc').addEventListener('click', function(){
+      if(modo !== 'nuvem'){ toast('Modo local — nada a sincronizar.', 'info'); return; }
+      toast('A sincronizar…', 'info');
+      Store.sincronizar().then(function(r){
+        return nuvemCarregar();
+      }).then(function(){ closeSheet(); toast('Sincronizado.'); })
+        .catch(function(e){ toast(e.message, 'err'); });
+    });
+
+    if($('mMigrar')) $('mMigrar').addEventListener('click', function(){
+      var raw = localStorage.getItem(K_LOCAL);
+      if(!raw){ toast('Não há dados locais para enviar.', 'info'); return; }
+      var antigo = null;
+      try{ antigo = JSON.parse(raw); }catch(e){}
+      if(!antigo || !(antigo.history || []).length){ toast('Não há histórico local por enviar.', 'info'); return; }
+      toast('A enviar ' + antigo.history.length + ' operações…', 'info');
+      Store.migrarLocal(antigo).then(function(n){
+        closeSheet();
+        toast(n + ' operações enviadas.');
+        return nuvemCarregar();
+      }).catch(function(e){ toast(e.message, 'err'); });
+    });
+
+    if($('mSair')) $('mSair').addEventListener('click', function(){
+      Store.sair(); closeSheet(); ecraMostrar('login');
+    });
+    if($('mAtivar')) $('mAtivar').addEventListener('click', function(){
+      closeSheet(); ecraMostrar('login');
+    });
+  });
+
+  /* ---------- painel ---------- */
+  function renderInicio(){
+    var total = S.locks.length;
+    var livres = S.locks.filter(function(l){ return l.estado === LoTo.LIVRE; }).length;
+    var uso = S.locks.filter(function(l){ return l.estado === LoTo.USO; }).length;
+    var taxa = total ? uso / total : 0;
+    var pct = function(x){ return (Math.round(x*1000)/10).toFixed(1).replace('.', ',') + '%'; };
+
+    $('kTotal').textContent = total;
+    $('kLivres').textContent = livres;
+    $('kUso').textContent = uso;
+    $('kTaxa').textContent = pct(taxa);
+    $('kTaxaSub').textContent = uso + ' de ' + total + ' em uso';
+    $('rLivres').textContent = livres;
+    $('pLivres').textContent = pct(total ? livres/total : 0);
+    $('rUso').textContent = uso;
+    $('pUso').textContent = pct(total ? uso/total : 0);
+    $('barOcup').innerHTML =
+      '<i class="g" style="width:' + (total ? livres/total*100 : 0) + '%"></i>' +
+      '<i class="a" style="width:' + (total ? uso/total*100 : 0) + '%"></i>';
+
+    // aviso de fila
+    var pend = modo === 'nuvem' ? Store.fila().length : 0;
+    var pb = $('pendBox');
+    if(pend){
+      pb.innerHTML = '<div class="alert warn" style="margin:14px 0 0">' +
+        '<b>' + pend + ' operação(ões)</b> guardada(s) no telemóvel à espera de ligação. ' +
+        'Os colegas ainda não as vêem — serão enviadas automaticamente.</div>';
+    } else if(modo === 'nuvem' && !Store.online()){
+      pb.innerHTML = '<div class="alert info" style="margin:14px 0 0">Sem ligação. A mostrar os últimos dados recebidos.</div>';
+    } else { pb.innerHTML = ''; }
+
+    var ativos = S.locks.filter(function(l){ return l.estado === LoTo.USO; });
+    var box = $('ativosBox');
+    if(!ativos.length){
+      box.innerHTML = '<div class="row"><i class="dot g"></i><div>' +
+        '<div class="nm">Nenhum bloqueio ativo</div><div class="ds">Todos os cadeados estão livres</div></div></div>';
+    } else {
+      box.innerHTML = ativos.map(function(l){
+        return '<div class="row"><i class="dot a"></i><div style="min-width:0">' +
+          '<div class="nm">' + esc(l.id) + '</div>' +
+          '<div class="ds" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          esc(l.equipamento) + ' · ' + esc(l.responsavel) + '</div></div>' +
+          '<div class="rt"><small>' + esc(LoTo.fmtDateShort(l.dt)) + '</small></div></div>';
+      }).join('');
+    }
+    atualizarBadge();
+  }
+
+  /* ---------- consignação ---------- */
+  function nomeProprio(){
+    if(modo === 'nuvem'){
+      var u = Store.user();
+      return (localStorage.getItem('loto.ultimoNome') || (u && u.email ? u.email.split('@')[0] : '')) || '';
+    }
+    return localStorage.getItem('loto.ultimoNome') || '';
+  }
+  function preencherMembros(){
+    var nomes = (S.users && S.users.length ? S.users : []).slice();
+    var proprio = nomeProprio();
+    if(proprio && nomes.indexOf(proprio) < 0) nomes.unshift(proprio);
+    var opts = nomes.filter(Boolean).map(function(n){ return '<option value="' + esc(n) + '">'; }).join('');
+    $('dlMembros').innerHTML = opts;
+    $('dlMembros2').innerHTML = opts;
+    if(proprio && !$('cResp').value) $('cResp').value = proprio;
+    if(proprio && !$('dResp').value) $('dResp').value = proprio;
+  }
+
+  function renderConsignar(){
+    var livres = S.locks.filter(function(l){ return l.estado === LoTo.LIVRE; });
+    $('cCadeado').innerHTML = livres.length
+      ? '<option value="">— Escolher cadeado livre —</option>' +
+        livres.map(function(l){ return '<option value="' + esc(l.id) + '">' + esc(l.id) + '</option>'; }).join('')
+      : '<option value="">Sem cadeados livres</option>';
+    $('cCadeadoHint').textContent = livres.length + ' livre(s) em ' + S.locks.length + '.';
+    $('cData').value = LoTo.fmtDT(new Date().toISOString());
+    preencherMembros();
+  }
+
+  $('formConsig').addEventListener('submit', function(e){
+    e.preventDefault();
+    var form = {
+      id: $('cCadeado').value,
+      equipamento: $('cEquip').value,
+      responsavel: $('cResp').value,
+      at: $('cAT').value
+    };
+    $('alertConsig').innerHTML = '';
+
+    if(!form.id || !form.equipamento.trim() || !form.responsavel.trim() || !form.at.trim()){
+      $('alertConsig').innerHTML = '<div class="alert">Por favor, preencha todos os campos obrigatórios (Cadeado, Equipamento, Responsável e AT).</div>';
+      return;
+    }
+
+    var btn = $('btnConsignar');
+    btn.disabled = true; btn.textContent = 'A registar…';
+
+    var acao;
+    if(modo === 'local'){
+      var res = LoTo.consignar({ locks:S.locks, history:S.history, users:S.users }, form, new Date().toISOString());
+      if(!res.ok){
+        $('alertConsig').innerHTML = '<div class="alert">' + res.erros.map(esc).join('<br>') + '</div>';
+        btn.disabled = false; btn.textContent = '🔒 Validar consignação';
+        return;
+      }
+      S = res.state; localGravar();
+      acao = Promise.resolve({ ok:true, op:{ tipo:'Consignação', codigo:form.id,
+        equipamento:form.equipamento, responsavel:form.responsavel, at:form.at,
+        quando:new Date().toISOString() } });
+    } else {
+      acao = Store.consignar(form).then(function(r){
+        return r;
+      });
+    }
+
+    acao.then(function(r){
+      // Em modo nuvem aplicamos já a alteração (otimista). Em modo local o
+      // LoTo.consignar já devolveu o estado completo, não se repete.
+      if(modo !== 'local'){
+        var quando = (r.op && r.op.quando) || new Date().toISOString();
+        S.locks.forEach(function(l){
+          if(l.id === String(form.id).trim()){
+            l.estado = LoTo.USO;
+            l.equipamento = form.equipamento.trim();
+            l.responsavel = form.responsavel.trim();
+            l.dt = quando;
+          }
+        });
+        S.history.unshift({
+          dt: quando, dtTexto: LoTo.fmtDT(quando),
+          tipo: 'Consignação', id: String(form.id).trim(),
+          equipamento: form.equipamento.trim(), responsavel: form.responsavel.trim(),
+          status: 'Em Bloqueio', at: form.at.trim(), quem: nomeProprio(),
+          pendente: r.fila === true
+        });
+      } else {
+        localGravar();
+      }
+      localStorage.setItem('loto.ultimoNome', form.responsavel.trim());
+
+      $('formConsig').reset();
+      renderInicio();
+      openSheet(
+        '<div class="big-ic">🔒</div>' +
+        '<h3 style="text-align:center">Bloqueio confirmado</h3>' +
+        '<p style="text-align:center;color:#8fa3c4;font-size:13.5px;margin:6px 0 0">' +
+          (r.fila ? 'Guardado no telemóvel — será enviado quando houver ligação.' : 'Registado na nuvem e visível a toda a equipa.') +
+        '</p>' +
+        '<div class="recap">' +
+          '<div><span>Cadeado</span><span>' + esc(form.id) + '</span></div>' +
+          '<div><span>Equipamento</span><span>' + esc(form.equipamento) + '</span></div>' +
+          '<div><span>Responsável</span><span>' + esc(form.responsavel) + '</span></div>' +
+          '<div><span>AT</span><span>' + esc(form.at) + '</span></div>' +
+          '<div><span>Data / hora</span><span>' + esc(LoTo.fmtDT((r.op && r.op.quando) || new Date().toISOString())) + '</span></div>' +
+          '<div><span>Estado</span><span style="color:#fbbf24">Em Bloqueio</span></div>' +
+        '</div>' +
+        '<button class="btn" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">Concluir</button>'
+      );
+      ecraMostrar('inicio');
+      if(modo === 'nuvem'){ nuvemCarregar().catch(function(){}); }
+    }).catch(function(err){
+      $('alertConsig').innerHTML = '<div class="alert">' + esc(err.message || 'Falha ao registar.') + '</div>';
+    }).then(function(){
+      btn.disabled = false; btn.textContent = '🔒 Validar consignação';
+    });
+  });
+
+  /* ---------- desconsignação ---------- */
+  function renderDesconsignar(){
+    var uso = S.locks.filter(function(l){ return l.estado === LoTo.USO; });
+    $('dCadeado').innerHTML = uso.length
+      ? '<option value="">— Escolher cadeado em uso —</option>' +
+        uso.map(function(l){
+          return '<option value="' + esc(l.id) + '">' + esc(l.id) + ' · ' + esc(l.equipamento) + '</option>';
+        }).join('')
+      : '<option value="">Sem equipamentos bloqueados</option>';
+    $('dCadeadoHint').textContent = uso.length
+      ? uso.length + ' equipamento(s) bloqueado(s).'
+      : 'Nada para desbloquear neste momento.';
+    $('dData').value = LoTo.fmtDT(new Date().toISOString());
+    preencherMembros();
+  }
+
+  $('formDesconsig').addEventListener('submit', function(e){
+    e.preventDefault();
+    var id = $('dCadeado').value;
+    var resp = $('dResp').value;
+    var seg = $('dSeg').checked;
+    $('alertDesconsig').innerHTML = '';
+
+    if(!id || !resp.trim()){
+      $('alertDesconsig').innerHTML = '<div class="alert">Por favor, indique o ID do Cadeado e o Responsável pela Desconsignação.</div>';
+      return;
+    }
+    if(!seg){
+      $('alertDesconsig').innerHTML = '<div class="alert">Antes de efetuar a Desconsignação, garantir que todas as condições de segurança estão repostas!</div>';
+      return;
+    }
+
+    var antes = S.locks.filter(function(l){ return l.id === String(id).trim(); })[0];
+    var equipAntes = antes ? antes.equipamento : '—';
+    var btn = $('btnDesconsignar');
+    btn.disabled = true; btn.textContent = 'A registar…';
+
+    var acao;
+    if(modo === 'local'){
+      var res = LoTo.desconsignar({ locks:S.locks, history:S.history, users:S.users },
+        { id:id, responsavel:resp, segurancaConfirmada:true }, new Date().toISOString());
+      if(!res.ok){
+        $('alertDesconsig').innerHTML = '<div class="alert">' + res.erros.map(esc).join('<br>') + '</div>';
+        btn.disabled = false; btn.textContent = '🔓 Confirmar desbloqueio';
+        return;
+      }
+      S = res.state; localGravar();
+      acao = Promise.resolve({ ok:true, op:{ tipo:'Desconsignação', codigo:id, responsavel:resp,
+        quando:new Date().toISOString() } });
+    } else {
+      acao = Store.desconsignar({ id:id, responsavel:resp }, equipAntes);
+    }
+
+    acao.then(function(r){
+      var q = (r.op && r.op.quando) || new Date().toISOString();
+      if(modo !== 'local'){
+        S.locks.forEach(function(l){
+          if(l.id === String(id).trim()){ l.estado = LoTo.LIVRE; l.equipamento = '—'; l.responsavel = '—'; l.dt = q; }
+        });
+        S.history.unshift({
+          dt:q, dtTexto:LoTo.fmtDT(q), tipo:'Desconsignação', id:String(id).trim(),
+          equipamento:equipAntes, responsavel:resp.trim(), status:'Livre', at:'',
+          quem:nomeProprio(), pendente:r.fila === true
+        });
+      } else {
+        localGravar();
+      }
+      localStorage.setItem('loto.ultimoNome', resp.trim());
+
+      $('formDesconsig').reset();
+      renderInicio();
+      openSheet(
+        '<div class="big-ic">🔓</div>' +
+        '<h3 style="text-align:center">Desbloqueio confirmado</h3>' +
+        '<p style="text-align:center;color:#8fa3c4;font-size:13.5px;margin:6px 0 0">' +
+          (r.fila ? 'Guardado no telemóvel — será enviado quando houver ligação.' : 'Registado na nuvem e visível a toda a equipa.') +
+        '</p>' +
+        '<div class="recap">' +
+          '<div><span>Cadeado</span><span>' + esc(id) + '</span></div>' +
+          '<div><span>Equipamento</span><span>' + esc(equipAntes) + '</span></div>' +
+          '<div><span>Responsável</span><span>' + esc(resp) + '</span></div>' +
+          '<div><span>Data / hora</span><span>' + esc(LoTo.fmtDT(q)) + '</span></div>' +
+          '<div><span>Estado</span><span style="color:#4ade80">Livre</span></div>' +
+        '</div>' +
+        '<button class="btn warn" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">Concluir</button>'
+      );
+      ecraMostrar('inicio');
+      if(modo === 'nuvem'){ nuvemCarregar().catch(function(){}); }
+    }).catch(function(err){
+      $('alertDesconsig').innerHTML = '<div class="alert">' + esc(err.message || 'Falha ao registar.') + '</div>';
+    }).then(function(){
+      btn.disabled = false; btn.textContent = '🔓 Confirmar desbloqueio';
+    });
+  });
+
+  /* ---------- histórico ---------- */
+  function filtrar(){
+    var t = ($('hSearch').value || '').toLowerCase().trim();
+    return S.history.filter(function(h){
+      if(hTipo !== 'Todos' && h.tipo !== hTipo) return false;
+      if(!t) return true;
+      return ((h.id||'') + ' ' + (h.equipamento||'') + ' ' + (h.responsavel||'') + ' ' + (h.at||'') + ' ' + (h.quem||''))
+        .toLowerCase().indexOf(t) >= 0;
+    });
+  }
+  function renderHistorico(){
+    var rows = filtrar();
+    var box = $('hList');
+    if(!rows.length){
+      box.innerHTML = '<div class="empty"><div class="big">📋</div>' +
+        (S.history.length ? 'Sem registos para este filtro.' : 'Ainda não há operações registadas.') + '</div>';
+      return;
+    }
+    box.innerHTML = rows.map(function(h){
+      var des = h.tipo === 'Desconsignação';
+      return '<div class="hitem' + (des ? ' des' : '') + '">' +
+        '<div class="top"><span class="tag">' + esc(h.tipo) + '</span>' +
+        (h.pendente ? '<span class="pend">por enviar</span>' : '') +
+        '<span class="when">' + esc(h.dtTexto) + '</span></div>' +
+        '<div class="lid">🗝️ ' + esc(h.id) + '</div>' +
+        '<div class="meta">Equipamento: <b>' + esc(h.equipamento) + '</b></div>' +
+        '<div class="meta">Responsável: <b>' + esc(h.responsavel) + '</b></div>' +
+        (h.at ? '<div class="meta">AT: <b>' + esc(h.at) + '</b></div>' : '') +
+        '<div class="meta">Status: <b style="color:' + (des ? '#4ade80' : '#fbbf24') + '">' + esc(h.status) + '</b>' +
+          (h.quem ? ' · registado por <b>' + esc(h.quem) + '</b>' : '') + '</div>' +
+      '</div>';
+    }).join('');
+  }
+  $('hChips').addEventListener('click', function(e){
+    var c = e.target.closest('.chip'); if(!c) return;
+    hTipo = c.dataset.tipo;
+    this.querySelectorAll('.chip').forEach(function(x){ x.classList.toggle('on', x === c); });
+    renderHistorico();
+  });
+  $('hSearch').addEventListener('input', renderHistorico);
+
+  $('btnCSV').addEventListener('click', function(){
+    if(!S.history.length){ toast('Histórico vazio.', 'err'); return; }
+    var head = ['Data/Hora Registro','Tipo Operação','ID Cadeado','Equipamento','Responsável','Status','Autorização de Trabalho','Registado por'];
+    var linhas = S.history.slice().reverse().map(function(h){
+      return [h.dtTexto, h.tipo, h.id, h.equipamento, h.responsavel, h.status, h.at, h.quem || ''];
+    });
+    var csv = [head].concat(linhas).map(function(r){
+      return r.map(function(c){
+        var v = String(c == null ? '' : c);
+        return /[";\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+      }).join(';');
+    }).join('\r\n');
+    var blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'historico_loto_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+    toast('Histórico exportado.');
+  });
+
+  /* ---------- cadeados ---------- */
+  function renderCadeados(){
+    var q = ($('gSearch').value || '').toLowerCase().trim();
+    var list = S.locks.filter(function(l){
+      if(gEst !== 'Todos' && l.estado !== gEst) return false;
+      if(q && l.id.toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    $('gGrid').innerHTML = list.length ? list.map(function(l){
+      var uso = l.estado === LoTo.USO;
+      return '<div class="lcell' + (uso ? ' uso' : '') + '" data-lid="' + esc(l.id) + '">' +
+        esc(l.id) + '<small>' + (uso ? 'EM USO' : 'LIVRE') + '</small></div>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1"><div class="big">🗝️</div>Sem cadeados.</div>';
+  }
+  $('gChips').addEventListener('click', function(e){
+    var c = e.target.closest('.chip'); if(!c) return;
+    gEst = c.dataset.est;
+    this.querySelectorAll('.chip').forEach(function(x){ x.classList.toggle('on', x === c); });
+    renderCadeados();
+  });
+  $('gSearch').addEventListener('input', renderCadeados);
+
+  $('gGrid').addEventListener('click', function(e){
+    var cell = e.target.closest('.lcell'); if(!cell) return;
+    var id = cell.dataset.lid;
+    var l = S.locks.filter(function(x){ return x.id === id; })[0];
+    if(!l) return;
+    if(l.estado === LoTo.USO){ toast('Cadeado ' + id + ' em uso — desconsigne primeiro.', 'err'); return; }
+    openSheet(
+      '<h3>Remover cadeado?</h3>' +
+      '<p style="color:#8fa3c4;font-size:13.5px">O cadeado <b style="color:#fff">' + esc(id) + '</b> será retirado do quadro.</p>' +
+      '<div class="btn-row" style="margin-top:16px">' +
+        '<button class="btn ghost" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">Cancelar</button>' +
+        '<button class="btn danger" id="confirmDel">Remover</button>' +
+      '</div>'
+    );
+    $('confirmDel').addEventListener('click', function(){
+      var acao = modo === 'local'
+        ? Promise.resolve(LoTo.removerCadeado({locks:S.locks,history:S.history,users:S.users}, id))
+        : Store.removerCadeado(id).then(function(){ return { ok:true }; });
+      acao.then(function(r){
+        if(!r.ok){ closeSheet(); toast(r.erros[0], 'err'); return; }
+        S.locks = S.locks.filter(function(x){ return x.id !== id; });
+        if(modo === 'local') localGravar();
+        closeSheet(); renderInicio(); renderCadeados();
+        toast('Cadeado ' + id + ' removido.');
+      }).catch(function(err){ closeSheet(); toast(err.message, 'err'); });
+    });
+  });
+
+  $('btnAdd').addEventListener('click', function(){
+    var v = $('novoId').value.trim();
+    if(!v){ toast('Indique o ID do cadeado.', 'err'); return; }
+    if(S.locks.some(function(l){ return l.id === v; })){ toast('O cadeado ' + v + ' já existe.', 'err'); return; }
+    var acao = modo === 'local'
+      ? Promise.resolve(LoTo.adicionarCadeado({locks:S.locks,history:S.history,users:S.users}, v, new Date().toISOString()))
+      : Store.adicionarCadeado(v).then(function(){ return { ok:true }; });
+    acao.then(function(r){
+      if(!r.ok){ toast(r.erros[0], 'err'); return; }
+      S.locks.push({ id:v, estado:LoTo.LIVRE, equipamento:'—', responsavel:'—', dt:new Date().toISOString() });
+      if(modo === 'local') localGravar();
+      $('novoId').value = '';
+      renderInicio(); renderCadeados();
+      toast('Cadeado ' + v + ' adicionado.');
+    }).catch(function(err){ toast(err.message, 'err'); });
+  });
+
+  /* ---------- arranque ---------- */
+  function arrancar(){
+    if(!Store.nuvem){
+      // sem servidor configurado: modo local
+      $('loginAlert').innerHTML = '<div class="alert warn">Esta cópia ainda não está ligada a um servidor partilhado. ' +
+        'Funciona em modo local. Siga o guia de configuração para activar a sincronização.</div>';
+      S = localLer();
+      modo = 'local';
+      $('hdrSub').textContent = modo === 'local' ? 'Modo local (só este telemóvel)' : '';
+      $('footModo').textContent = 'Modo local — os dados não saem deste dispositivo.';
+      ecraMostrar('inicio');
+      return;
+    }
+    if(Store.user() && Store.equipa()){
+      entrarNaApp();
+    } else if(Store.user()){
+      ecraMostrar('equipa');
+    } else {
+      ecraMostrar('login');
+    }
+  }
+
+  window.addEventListener('online', function(){
+    atualizarBadge();
+    if(modo === 'nuvem'){
+      Store.sincronizar().then(function(){ return nuvemCarregar(); }).catch(function(){});
+    }
+  });
+  window.addEventListener('offline', atualizarBadge);
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'visible' && modo === 'nuvem') atualizarBadge();
+  });
+
+  setInterval(function(){
+    if(modo !== 'nuvem') return;
+    if(document.visibilityState !== 'visible') return;
+    atualizarBadge();
+    if(Store.fila().length){
+      Store.sincronizar().then(function(r){
+        if(r.enviados){ nuvemCarregar().catch(function(){}); toast(r.enviados + ' operação(ões) sincronizada(s).'); }
+      }).catch(function(){});
+    }
+  }, ((window.LOTO_CONFIG && window.LOTO_CONFIG.intervalo) || 20) * 1000);
+
+  arrancar();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+})();
+</script>
+</body>
+</html>
