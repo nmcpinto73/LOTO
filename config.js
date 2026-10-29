@@ -1,22 +1,16 @@
 /* ============================================================================
    LoTo — configuração do servidor
    ----------------------------------------------------------------------------
-   Preencha os dois valores abaixo e faça novo commit para o GitHub Pages.
-   Onde os encontrar: Supabase → Project Settings → API
-     • Project URL      -> supabaseUrl   (SÓ o domínio: https://ID.supabase.co)
-       NÃO inclua /rest/v1/ nem /auth/v1 — a app acrescenta esses caminhos.
-     • anon public key  -> supabaseAnonKey   (é pública, pode ficar no código)
+   Projecto Supabase: pgrropolwuxvysyfvjyu
+   Verificado a 2026-10-29: auth/login HTTP 200, tabelas respondem 200.
 
-   Se deixar vazio, a app funciona em MODO LOCAL (só neste telemóvel),
-   exactamente como antes.
+   ATENÇÃO ao URL: é SÓ o domínio, sem /rest/v1/ nem /auth/v1.
+   A app acrescenta esses caminhos sozinha.
    ============================================================================ */
 window.LOTO_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: '',
+  supabaseUrl: 'https://pgrropolwuxvysyfvjyu.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBncnJvcG9sd3V4dnlzeWZ2anl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMTc5MzYsImV4cCI6MjEwODU5MzkzNn0.cJ2DxrCABOyJNqkUUbrKxpoqMPQxOlB28mwh88EG6G0',
 
-  // Nome que aparece no cabeçalho
   empresa: 'EuroResinas',
-
-  // Segundos entre sincronizações automáticas
   intervalo: 20
 };
