@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="pt-PT">
 <head>
 <meta charset="utf-8">
@@ -623,11 +622,19 @@
   /* ---------- login ---------- */
   function loginErro(msg){ $('loginAlert').innerHTML = msg ? '<div class="alert">' + esc(msg) + '</div>' : ''; }
 
+  /* Um 404 em /rest/v1/auth/v1/... significa que o config.js traz o endpoint
+     REST em vez do Project URL. Traduzimos para uma instrução clara. */
+  function traduzErro(msg, err){
+    if(err && err.http === 404) return 'URL mal configurado em config.js: use apenas https://SEU-ID.supabase.co, sem /rest/v1.';
+    return msg;
+  }
+
   /* ---------- diagnóstico da ligação ---------- */
   function desenharDiagnostico(r){
     var html = '<div style="margin-top:16px">';
     html += '<div class="recap">' +
       '<div><span>URL em uso</span><span style="font-size:11.5px">' + (r.url ? esc(r.url) : '(vazio)') + '</span></div>' +
+      (r.urlCorrigido ? '<div><span>Corrigido de</span><span style="font-size:11.5px;color:#fbbf24">' + esc(r.urlCrua) + '</span></div>' : '') +
       '<div><span>Tipo de chave</span><span>' + esc(r.chave || '—') + '</span></div>' +
       '<div><span>Modo nuvem</span><span>' + (r.nuvem ? 'activo' : 'desligado') + '</span></div>' +
     '</div>';
@@ -670,7 +677,7 @@
 
   function mostrarDiagnostico(){
     if(!$('diagBox')) return;
-    desenharDiagnostico({ url: Store.url, chave: Store.tipoChave(Store.chave), nuvem: Store.nuvem,
+    desenharDiagnostico({ url: Store.url, urlCrua: Store.urlCrua, urlCorrigido: Store.urlCorrigido, chave: Store.tipoChave(Store.chave), nuvem: Store.nuvem,
       itens: Store.validarConfig(), testes: [] });
     correrDiagnostico();
     $('diagBox').scrollIntoView({behavior:'smooth', block:'center'});
@@ -691,7 +698,7 @@
       if(!ultimo && u && u.email) localStorage.setItem('loto.ultimoNome', u.email.split('@')[0]);
       entrarNaApp();
     }).catch(function(err){
-      loginErro(err.message);
+      loginErro(traduzErro(err.message, err));
       if(err.rede) mostrarDiagnostico();
     })
       .then(function(){ self.disabled = false; self.textContent = 'Entrar'; });
@@ -715,7 +722,7 @@
         $('loginAlert').innerHTML = '<div class="alert ok">Conta criada. Abra o email de confirmação e depois volte aqui para entrar.</div>';
       }
     }).catch(function(err){
-      loginErro(err.message);
+      loginErro(traduzErro(err.message, err));
       if(err.rede) mostrarDiagnostico();
     })
       .then(function(){ self.disabled = false; });

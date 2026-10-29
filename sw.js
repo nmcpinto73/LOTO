@@ -4,7 +4,7 @@
 
    Sempre que alterar ficheiros, suba o número da versão para forçar atualização.
 */
-const CACHE = 'loto-v4';
+const CACHE = 'loto-v5';
 
 const ASSETS = [
   './',

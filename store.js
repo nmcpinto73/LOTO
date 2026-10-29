@@ -12,7 +12,22 @@
   'use strict';
 
   var CFG = global.LOTO_CONFIG || {};
-  var URL_BASE = (CFG.supabaseUrl || '').replace(/\/+$/, '');
+
+  /* O campo Project URL deve ser apenas https://ID.supabase.co.
+     Muita gente cola o endpoint REST (…/rest/v1/) que aparece no painel.
+     Normalizamos aqui para que as duas formas funcionem. */
+  function normalizarUrl(u) {
+    var s = String(u || '').trim().replace(/^['"\s]+|['"\s]+$/g, '');
+    for (var i = 0; i < 3; i++) {
+      s = s.replace(/\/+$/, '');
+      s = s.replace(/\/(rest|auth)\/v1$/i, '');
+    }
+    return s.replace(/\/+$/, '');
+  }
+
+  var URL_CRUA = String(CFG.supabaseUrl || '').trim();
+  var URL_BASE = normalizarUrl(CFG.supabaseUrl);
+  var URL_CORRIGIDO = !!(URL_CRUA && URL_CRUA !== URL_BASE);
   var KEY = CFG.supabaseAnonKey || '';
   var NUVEM = !!(URL_BASE && KEY);
 
@@ -80,7 +95,9 @@
           else if (/Signups not allowed|signups are disabled|signup is disabled/i.test(msg)) msg = 'O registo por email está desactivado no Supabase (Authentication → Providers → Email).';
           else if (/Email rate limit exceeded/i.test(msg)) msg = 'Demasiadas tentativas seguidas. Espere alguns minutos.';
           else if (/Unable to validate email|invalid format/i.test(msg)) msg = 'Email inválido para o Supabase.';
-          throw new Error(msg + ' [HTTP ' + r.status + ' em ' + url + ']');
+          var e2 = new Error(msg + ' [HTTP ' + r.status + ' em ' + url + ']');
+          e2.http = r.status;
+          throw e2;
         }
         return d;
       });
@@ -494,7 +511,7 @@
       if (/\s/.test(u)) itens.push({ n: 'URL do projecto', e: 'erro', d: 'Contém espaços ou mudança de linha. Apague tudo e cole só o URL.' });
       if (!/^https:\/\//i.test(u)) itens.push({ n: 'URL do projecto', e: 'erro', d: 'Tem de começar por https:// (se está http://, o browser bloqueia).' });
       if (/dashboard|supabase\.com\/project/i.test(u)) itens.push({ n: 'URL do projecto', e: 'erro', d: 'Isto é o endereço do painel, não a API. Tem de ser https://SEU-ID.supabase.co' });
-      if (/\/(rest|auth)\/v1/i.test(u)) itens.push({ n: 'URL do projecto', e: 'erro', d: 'Tire o /rest/v1 ou /auth/v1 do fim. Só o domínio.' });
+      if (/\/(rest|auth)\/v1\/?$/i.test(u)) itens.push({ n: 'URL do projecto', e: 'aviso', d: 'Tinha /rest/v1 (ou /auth/v1) no fim. A app já removeu automaticamente — mas convém corrigir o config.js.' });
       if (/\/$/.test(u)) itens.push({ n: 'URL do projecto', e: 'aviso', d: 'Tem uma barra no fim. A app remove-a, mas convém limpar.' });
       if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(u) && /^https:\/\//i.test(u) && !/\//.test(u.slice(8)))
         itens.push({ n: 'URL do projecto', e: 'aviso', d: 'Não tem o formato habitual ID.supabase.co. Confirme que copiou o Project URL.' });
@@ -533,7 +550,7 @@
     var u = URL_BASE;
     var testes = [];
 
-    if (!u) return Promise.resolve({ url: '', itens: itens, testes: testes, nuvem: NUVEM });
+    if (!u) return Promise.resolve({ url: '', urlCrua: URL_CRUA, urlCorrigido: URL_CORRIGIDO, itens: itens, testes: testes, nuvem: NUVEM });
 
     return sonda(u + '/auth/v1/health', { headers: { 'apikey': KEY } })
       .then(function (r1) {
@@ -569,7 +586,7 @@
         }
       })
       .then(function () {
-        return { url: u, chave: tipoChave(KEY), itens: itens, testes: testes, nuvem: NUVEM };
+        return { url: u, urlCrua: URL_CRUA, urlCorrigido: URL_CORRIGIDO, chave: tipoChave(KEY), itens: itens, testes: testes, nuvem: NUVEM };
       });
   }
 
@@ -587,7 +604,7 @@
       adicionarCadeado: adicionarCadeado, removerCadeado: removerCadeado,
       migrarLocal: migrarLocal, online: online, fmt: fmt,
       diagnostico: diagnostico, validarConfig: validarConfig, tipoChave: tipoChave,
-      url: URL_BASE, chave: KEY
+      url: URL_BASE, chave: KEY, urlCrua: URL_CRUA, urlCorrigido: URL_CORRIGIDO
   };
   }
 
