@@ -588,13 +588,16 @@
     var b = $('sincBadge'), t = $('sincTxt');
     var n = Store.fila().length;
     b.className = 'sinc' + (!Store.online() ? ' off' : '');
+    var vivo = Store.estadoTempoReal && Store.estadoTempoReal() === 'ligado';
     if(!Store.online()){ t.textContent = n ? 'Offline · ' + n + ' por enviar' : 'Offline'; }
     else if(n){ t.textContent = n + ' por enviar'; b.className = 'sinc off'; }
-    else { t.textContent = 'Sincronizado'; }
+    else { t.textContent = vivo ? 'Ao vivo' : 'Sincronizado'; }
   }
 
-  function nuvemCarregar(mostrarCarregando){
-    if(mostrarCarregando) toast('A carregar…', 'info');
+  function nuvemCarregar(silencioso){
+    var primeiro = ultimaCarga === 0;
+    ultimaCarga = Date.now();
+    if(!silencioso && !primeiro) toast('A carregar…', 'info');
     return Store.carregar().then(function(snap){
       S = { locks: snap.locks || [], history: snap.history || [], users: snap.users || [] };
       $('hdrSub').textContent = (snap.equipa && snap.equipa.nome) ? snap.equipa.nome : 'LoTo';
@@ -608,14 +611,62 @@
     });
   }
 
+  /* ================= sincronização automática =================
+     1. Realtime: o Supabase avisa quando outro dispositivo grava.
+     2. Pull periódico (30-45 s) e ao voltar à app / recuperar rede.
+     3. Push automático da fila, 2,5 s depois de cada operação.
+     O botão manual mantém-se em ⋯ -> Sincronizar agora. */
+  var aCarregar = false, pushTimer = null, ultimaCarga = 0, rtLigado = false;
+
+  function pullSilencioso(){
+    if(modo !== 'nuvem') return Promise.resolve();
+    if(!Store.online()) return Promise.resolve();
+    if(aCarregar) return Promise.resolve();
+    aCarregar = true;
+    ultimaCarga = Date.now();
+    return Store.sincronizar()
+      .then(function(r){
+        if(r && r.enviados) toast(r.enviados + ' operação(ões) sincronizada(s).');
+        return nuvemCarregar(true);
+      })
+      .catch(function(){})
+      .then(function(){ aCarregar = false; });
+  }
+
+  function agendarPush(){
+    if(modo !== 'nuvem') return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(function(){
+      if(!Store.fila().length) return;
+      Store.sincronizar().then(function(r){
+        if(r.enviados){ toast(r.enviados + ' operação(ões) sincronizada(s).'); nuvemCarregar(true); }
+      }).catch(function(){});
+    }, 2500);
+  }
+
+  function ligarRealtime(){
+    if(modo !== 'nuvem' || rtLigado) return;
+    rtLigado = true;
+    Store.ligarTempoReal(function(){
+      nuvemCarregar(true).catch(function(){});
+      atualizarBadge();
+    });
+  }
+
+  function desligarRealtime(){
+    rtLigado = false;
+    if(Store.desligarTempoReal) Store.desligarTempoReal();
+  }
+
   function entrarNaApp(){
     modo = 'nuvem';
     if(!Store.equipa()){ ecraMostrar('equipa'); return; }
     ecraMostrar('inicio');
-    nuvemCarregar().catch(function(err){
+    nuvemCarregar().then(ligarRealtime).catch(function(err){
       toast(err.message || 'Sem ligação. A mostrar dados guardados.', 'err');
       var c = Store.cache();
       if(c){ S = { locks: c.locks || [], history: c.history || [], users: c.users || [] }; renderInicio(); }
+      ligarRealtime();
     });
   }
 
@@ -826,7 +877,7 @@
     });
 
     if($('mSair')) $('mSair').addEventListener('click', function(){
-      Store.sair(); closeSheet(); ecraMostrar('login');
+      desligarRealtime(); Store.sair(); closeSheet(); ecraMostrar('login');
     });
     if($('mAtivar')) $('mAtivar').addEventListener('click', function(){
       closeSheet(); ecraMostrar('login');
@@ -992,7 +1043,7 @@
         '<button class="btn" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">Concluir</button>'
       );
       ecraMostrar('inicio');
-      if(modo === 'nuvem'){ nuvemCarregar().catch(function(){}); }
+      if(modo === 'nuvem'){ nuvemCarregar(true).catch(function(){}); agendarPush(); }
     }).catch(function(err){
       $('alertConsig').innerHTML = '<div class="alert">' + esc(err.message || 'Falha ao registar.') + '</div>';
     }).then(function(){
@@ -1087,7 +1138,7 @@
         '<button class="btn warn" onclick="document.getElementById(\'modal\').classList.remove(\'show\')">Concluir</button>'
       );
       ecraMostrar('inicio');
-      if(modo === 'nuvem'){ nuvemCarregar().catch(function(){}); }
+      if(modo === 'nuvem'){ nuvemCarregar(true).catch(function(){}); agendarPush(); }
     }).catch(function(err){
       $('alertDesconsig').innerHTML = '<div class="alert">' + esc(err.message || 'Falha ao registar.') + '</div>';
     }).then(function(){
@@ -1249,26 +1300,38 @@
 
   window.addEventListener('online', function(){
     atualizarBadge();
-    if(modo === 'nuvem'){
-      Store.sincronizar().then(function(){ return nuvemCarregar(); }).catch(function(){});
+    if(modo === 'nuvem'){ pullSilencioso(); ligarRealtime(); }
+  });
+  window.addEventListener('offline', function(){
+    atualizarBadge();
+    desligarRealtime();
+  });
+
+  // voltar à app: trocar de aplicação, desbloquear o telemóvel, mudar de separador
+  document.addEventListener('visibilitychange', function(){
+    if(modo !== 'nuvem') return;
+    atualizarBadge();
+    if(document.visibilityState === 'visible'){
+      if(Date.now() - ultimaCarga > 3000) pullSilencioso();
+      ligarRealtime();
     }
   });
-  window.addEventListener('offline', atualizarBadge);
-
-  document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState === 'visible' && modo === 'nuvem') atualizarBadge();
+  window.addEventListener('focus', function(){
+    if(modo === 'nuvem' && Date.now() - ultimaCarga > 3000) pullSilencioso();
+  });
+  window.addEventListener('pageshow', function(){
+    if(modo === 'nuvem'){ pullSilencioso(); ligarRealtime(); }
   });
 
+  // rede de segurança: se o Realtime não estiver ligado, pull periódico
   setInterval(function(){
     if(modo !== 'nuvem') return;
     if(document.visibilityState !== 'visible') return;
     atualizarBadge();
-    if(Store.fila().length){
-      Store.sincronizar().then(function(r){
-        if(r.enviados){ nuvemCarregar().catch(function(){}); toast(r.enviados + ' operação(ões) sincronizada(s).'); }
-      }).catch(function(){});
+    if(Store.fila().length || !rtLigado || Store.estadoTempoReal() !== 'ligado'){
+      pullSilencioso();
     }
-  }, ((window.LOTO_CONFIG && window.LOTO_CONFIG.intervalo) || 20) * 1000);
+  }, Math.max(30, ((window.LOTO_CONFIG && window.LOTO_CONFIG.intervalo) || 45)) * 1000);
 
   arrancar();
 

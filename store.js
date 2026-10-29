@@ -210,6 +210,92 @@
   function fila() { return read(K_FILA, []); }
   function guardarFila(f) { write(K_FILA, f); }
   function falhas() { return read(K_FALHAS, []); }
+
+  /* ---------------- tempo real (WebSocket nativo) ----------------
+     Protocolo Realtime do Supabase, falado directamente. Quando outro
+     dispositivo grava, o servidor avisa e a UI recarrega sozinha.
+     Se a publicação não estiver activa não chegam eventos: nesse caso
+     a app continua a funcionar por pull periódico (ver index.html). */
+  var ws = null, rtPing = null, rtRef = 1, rtEstado = 'desligado',
+      rtTentativas = 0, rtReconectar = null, rtCallback = null, escritaPropria = 0;
+
+  function estadoTempoReal() { return rtEstado; }
+  function marcarEscritaPropria() { escritaPropria = Date.now(); }
+
+  function desligarTempoReal() {
+    rtEstado = 'desligado';
+    if (rtReconectar) { clearTimeout(rtReconectar); rtReconectar = null; }
+    if (rtPing) { clearInterval(rtPing); rtPing = null; }
+    if (ws) {
+      try { ws.onclose = null; ws.onerror = null; ws.onmessage = null; ws.close(); } catch (e) {}
+      ws = null;
+    }
+  }
+
+  function ligarTempoReal(aoMudar) {
+    rtCallback = aoMudar || rtCallback;
+    if (!NUVEM || typeof WebSocket === 'undefined') return;
+    var s = sessao(), eq = equipa();
+    if (!s || !s.access_token || !eq) return;
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+
+    desligarTempoReal();
+    rtEstado = 'a ligar';
+
+    var base = URL_BASE.replace(/^https:/i, 'wss:').replace(/^http:/i, 'ws:');
+    var url = base + '/realtime/v1/websocket?apikey=' + encodeURIComponent(KEY) + '&vsn=1.0.0';
+    try { ws = new WebSocket(url); } catch (e) { rtEstado = 'desligado'; return; }
+
+    ws.onopen = function () {
+      rtTentativas = 0;
+      rtEstado = 'ligado';
+      var filtro = 'equipa_id=eq.' + eq.id;
+      ws.send(JSON.stringify({
+        topic: 'realtime:loto-' + eq.id,
+        event: 'phx_join',
+        join_ref: '1',
+        ref: String(rtRef++),
+        payload: {
+          access_token: sessao() ? sessao().access_token : null,
+          config: {
+            postgres_changes: [
+              { event: '*', schema: 'public', table: 'cadeados', filter: filtro },
+              { event: '*', schema: 'public', table: 'eventos', filter: filtro }
+            ]
+          }
+        }
+      }));
+      rtPing = setInterval(function () {
+        if (ws && ws.readyState === 1) {
+          ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', ref: String(rtRef++), payload: {} }));
+        }
+      }, 25000);
+    };
+
+    ws.onmessage = function (m) {
+      var d;
+      try { d = JSON.parse(m.data); } catch (e) { return; }
+      if (d.event === 'phx_reply' && d.payload && d.payload.status === 'error') { rtEstado = 'desligado'; return; }
+      var alteracao = d.event === 'postgres_changes' ||
+        (d.payload && d.payload.data && (d.payload.data.type || d.payload.data.table));
+      if (!alteracao) return;
+      if (Date.now() - escritaPropria < 2500) return;   // eco da nossa escrita
+      if (rtCallback) rtCallback(d);
+    };
+
+    ws.onerror = function () { rtEstado = 'desligado'; };
+
+    ws.onclose = function () {
+      rtEstado = 'desligado';
+      if (rtPing) { clearInterval(rtPing); rtPing = null; }
+      ws = null;
+      if (!online()) return;
+      rtTentativas++;
+      var espera = Math.min(30000, 1500 * Math.pow(2, Math.min(rtTentativas, 4)));
+      rtReconectar = setTimeout(function () { ligarTempoReal(rtCallback); }, espera);
+    };
+  }
+
   function guardarFalhas(f) { write(K_FALHAS, f); }
 
   function aplicarLocal(locks, history, op) {
@@ -317,6 +403,7 @@
         p_cliente_id: op.cliente_id, p_quando: op.quando
       }
     }).then(function () {
+      marcarEscritaPropria();
       return { ok: true, op: op };
     }).catch(function (err) {
       // erro de rede -> fica em fila; erro de negócio -> devolve ao utilizador
@@ -348,6 +435,7 @@
         p_cliente_id: op.cliente_id, p_quando: op.quando
       }
     }).then(function () {
+      marcarEscritaPropria();
       return { ok: true, op: op };
     }).catch(function (err) {
       if (/Failed to fetch|NetworkError|Load failed|network/i.test(err.message)) {
@@ -603,6 +691,8 @@
       sincronizar: sincronizar, fila: fila, falhas: falhas, limparFalhas: limparFalhas,
       adicionarCadeado: adicionarCadeado, removerCadeado: removerCadeado,
       migrarLocal: migrarLocal, online: online, fmt: fmt,
+      ligarTempoReal: ligarTempoReal, desligarTempoReal: desligarTempoReal,
+      estadoTempoReal: estadoTempoReal, marcarEscritaPropria: marcarEscritaPropria,
       diagnostico: diagnostico, validarConfig: validarConfig, tipoChave: tipoChave,
       url: URL_BASE, chave: KEY, urlCrua: URL_CRUA, urlCorrigido: URL_CORRIGIDO
   };
